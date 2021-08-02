@@ -175,7 +175,7 @@ module SmsTools
       gsm_encoded_string
     end
 
-    def to_utf8(gsm_encoded_string)
+    def to_utf8(gsm_encoded_string, replace_invalid_char_with: nil)
       utf8_encoded_string = ''
       escape              = false
 
@@ -184,9 +184,9 @@ module SmsTools
           escape = true
         elsif escape
           escape = false
-          utf8_encoded_string << [fetch_utf8_char(GSM_EXTENSION_TABLE_ESCAPE_CODE + char)].pack('U')
+          utf8_encoded_string << [fetch_utf8_char(GSM_EXTENSION_TABLE_ESCAPE_CODE + char, replace_invalid_char_with: replace_invalid_char_with)].pack('U')
         else
-          utf8_encoded_string << [fetch_utf8_char(char)].pack('U')
+          utf8_encoded_string << [fetch_utf8_char(char, replace_invalid_char_with: replace_invalid_char_with)].pack('U')
         end
       end
 
@@ -195,8 +195,12 @@ module SmsTools
 
     private
 
-    def fetch_utf8_char(char)
-      GSM_TO_UTF8.fetch(char) { raise "Unsupported symbol in GSM-7 encoding: #{char}" }
+    def fetch_utf8_char(char, replace_invalid_char_with: nil)
+      GSM_TO_UTF8.fetch(char) do
+        raise "Unsupported symbol in GSM-7 encoding: #{char}" unless replace_invalid_char_with
+        raise "Only single UTF-8 character allowed for replace_invalid_char_with" if replace_invalid_char_with.size > 1 || (replace_invalid_char_with.encoding != Encoding::UTF_8 && replace_invalid_char_with.encoding != Encoding::US_ASCII)
+        replace_invalid_char_with.bytes[0]
+      end
     end
   end
 end
